@@ -55,6 +55,7 @@ def request_students_by_url(program_url: str):
     """
     A function that returns a table with applicants' data
     """
+    free_places = []
 
     # open browser
     driver = webdriver.Chrome()
@@ -63,10 +64,15 @@ def request_students_by_url(program_url: str):
     # click checkboxes
     WebDriverWait(driver, 360).until(
         EC.element_to_be_clickable((By.ID, 'original')))
-    driver.find_element(by=By.ID, value='original').click()
 
-    WebDriverWait(driver, 360).until(
-        EC.element_to_be_clickable((By.ID, 'priority')))
+    places = driver.find_element(By.CSS_SELECTOR, ".col-lg-3.d-flex.justify-content-center.align-items-center.places-list").text
+    places = int(places.split(": ")[-1])
+    places_dict = {
+        "url": program_url,
+        "places": places,
+    }
+
+    driver.find_element(by=By.ID, value='original').click()
     driver.find_element(by=By.ID, value='priority').click()
 
     # get user data
@@ -87,27 +93,31 @@ def request_students_by_url(program_url: str):
 
     driver.quit()
     df = pd.DataFrame(data)
-    return df
+    return df, places_dict
 
 
-def get_students_data(df: pd.DataFrame) -> pd.DataFrame:
+def scrap_data(df: pd.DataFrame) -> [pd.DataFrame, pd.DataFrame]:
     """
     Return students data for all programs
     """
     st_df = []
+    places_list = []
     for program_code, url in df[["program_code", "url"]].values:
-        url_students_df = request_students_by_url(url)
+        url_students_df, places_dict = request_students_by_url(url)
         url_students_df["program_code"] = program_code
         st_df.append(url_students_df)
+        places_list.append(places_dict)
     students_data_df = pd.concat(st_df, axis=0)
-    return students_data_df
+    places_df = pd.concat(places_list, axis=0)
+    return students_data_df, places_df
 
 
 if __name__ == '__main__':
     programs_df = pd.read_csv("database/urls_fkti.csv")
-    students_df = get_students_data(programs_df)  # to get new info
+    students_df, places_df = scrap_data(programs_df)  # to get new info
     # students_df = pd.read_csv("database/test_students.csv")  # to get mocked data
 
+    programs_df = pd.merge(programs_df, places_df, on=["url"])
     result_df = split_students_into_programs(students_df, programs_df)
 
     # get dima position by DIMA_ID
