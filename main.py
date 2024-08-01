@@ -5,6 +5,10 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import requests
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
 
 
 DIMA_ID = "175-199-309 03"
@@ -58,12 +62,15 @@ def request_students_by_url(program_url: str):
     free_places = []
 
     # open browser
-    driver = webdriver.Chrome()
+    options = Options()
+    options.add_argument("--headless")
+    driver = webdriver.Chrome(options=options)
     driver.get(program_url)
 
     # click checkboxes
     WebDriverWait(driver, 360).until(
         EC.element_to_be_clickable((By.ID, 'original')))
+    # time.sleep(10)
 
     places = driver.find_element(By.CSS_SELECTOR, ".col-lg-3.d-flex.justify-content-center.align-items-center.places-list").text
     places = int(places.split(": ")[-1])
@@ -72,7 +79,9 @@ def request_students_by_url(program_url: str):
         "places": places,
     }
 
-    driver.find_element(by=By.ID, value='original').click()
+    element = driver.find_element(by=By.ID, value='original')
+    action = ActionChains(driver)
+    action.move_to_element(element).click().perform()
     driver.find_element(by=By.ID, value='priority').click()
 
     # get user data
@@ -108,7 +117,7 @@ def scrap_data(df: pd.DataFrame) -> [pd.DataFrame, pd.DataFrame]:
         st_df.append(url_students_df)
         places_list.append(places_dict)
     students_data_df = pd.concat(st_df, axis=0)
-    places_df = pd.concat(places_list, axis=0)
+    places_df = pd.DataFrame(places_list)
     return students_data_df, places_df
 
 
